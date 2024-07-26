@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&display=swap"> 
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2&display=swap"> 
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #009999; 
+            color: #fff;
+        }
+        h1 {
+            display: flex;
+            align-items: center; 
+            justify-content: space-between; 
+            color: #fff; 
+            font-family: 'Exo 2', sans-serif; 
+        }
+        #title-container {
+            display: flex;
+            align-items: center;
+        }
+        #developer-info-button {
+            background-color: #000; 
+            color: #fff; 
+            border: 1px solid #fff; 
+            border-radius: 8px; 
+            padding: 5px 10px; 
+            cursor: pointer; 
+            font-family: 'Exo 2', sans-serif;
+            font-size: 16px; 
+            text-decoration: none; 
+            transition: background-color 0.3s ease; 
+        }
+        #developer-info-button:hover {
+            background-color: #333; 
+        }
+        #chart-container {
+            width: 80%;
+            margin: 0 auto;
+        }
+        input, select {
+            margin: 10px 0;
+            display: block;
+            background-color: #000; 
+            color: #fff; 
+            border: 1px solid #fff; 
+            padding: 5px;
+            border-radius: 5px; 
+            font-family: 'Michroma', sans-serif; 
+        }
+        input::placeholder {
+            color: #888;
+        }
+        label {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 1.1em;
+            color: #fff;
+        }
+        .error {
+            color: red;
+            font-size: 0.9em;
+            font-family: 'Exo 2', sans-serif;
+        }
+        button {
+            font-family: 'Exo 2', sans-serif; 
+            font-size: 16px; 
+        }
+        #generate-chart-button {
+            background-color: #003366; 
+            color: #fff; 
+            border: 1px solid #fff; 
+            border-radius: 8px; 
+            padding: 10px 20px;
+            cursor: pointer; 
+            transition: background-color 0.3s ease; 
+        }
+        #generate-chart-button:hover {
+            background-color: #002244; 
+        }
+        .button-container {
+            text-align: center; 
+            margin-top: 20px; 
+        }
+        #save-button {
+            background-color: #003366; 
+            color: #fff; 
+            border: 1px solid #fff; 
+            border-radius: 8px; 
+            padding: 10px 20px; 
+            cursor: pointer;
+            transition: background-color 0.3s ease; 
+            font-family: 'Exo 2', sans-serif; 
+            font-size: 16px; 
+        }
+        #save-button:hover {
+            background-color: #002244; 
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title-container">
+        Data Visualization Tool
+        <a href="https://github.com/KMORaza" id="developer-info-button" target="_blank">Developer Info</a>
+    </h1>
+    <form id="data-form">
+        <label for="chart-type">Select Chart Type:</label>
+        <select id="chart-type" name="chart-type">
+            <option value="pie">Pie Chart</option>
+            <option value="bar">Bar Chart</option>
+            <option value="line">Line Chart</option>
+            <option value="area">Area Chart</option> 
+        </select>
+        <label for="data-input">Enter Data (comma-separated values):</label>
+        <input type="text" id="data-input" placeholder="e.g., 10, 20, 30 or 1, 10, 2, 20" required>
+        <div id="data-error" class="error"></div>
+        <label for="labels-input">Enter Labels (comma-separated):</label>
+        <input type="text" id="labels-input" placeholder="e.g., A, B, C" required>
+        <div id="labels-error" class="error"></div>
+        <button type="submit" id="generate-chart-button">Generate Chart</button>
+    </form>
+    <div id="chart-container">
+        <canvas id="chart"></canvas>
+    </div>
+    <div class="button-container">
+        <button id="save-button">Save</button>
+    </div>
+    <script>
+        const form = document.getElementById('data-form');
+        const chartTypeSelect = document.getElementById('chart-type');
+        const dataInput = document.getElementById('data-input');
+        const labelsInput = document.getElementById('labels-input');
+        const dataError = document.getElementById('data-error');
+        const labelsError = document.getElementById('labels-error');
+        const ctx = document.getElementById('chart').getContext('2d');
+        const saveButton = document.getElementById('save-button');
+        let chart;
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            if (chart) {
+                chart.destroy();
+            }
+            dataError.textContent = '';
+            labelsError.textContent = '';
+            const chartType = chartTypeSelect.value;
+            const dataValues = dataInput.value.split(',').map(val => parseFloat(val.trim()));
+            const labels = labelsInput.value.split(',').map(label => label.trim());
+            
+            if (dataValues.some(isNaN)) {
+                dataError.textContent = 'Invalid data format. Please enter numeric values only.';
+                return;
+            }
+
+            if (chartType === 'pie' && dataValues.length !== labels.length) {
+                labelsError.textContent = 'Number of data values must match number of labels for pie chart.';
+                return;
+            }
+
+            if ((chartType === 'bar' || chartType === 'line' || chartType === 'area') && labels.length !== dataValues.length) {
+                labelsError.textContent = 'Number of labels must match number of data values for bar, line, and area charts.';
+                return;
+            }
+
+            let processedData = dataValues;
+            if (chartType === 'line' || chartType === 'area') {
+                processedData = dataValues.map((value, index) => ({ x: index + 1, y: value }));
+            }
+
+            chart = new Chart(ctx, {
+                type: chartType === 'area' ? 'line' : chartType,
+                data: {
+                    labels: chartType === 'pie' || chartType === 'bar' || chartType === 'line' || chartType === 'area' ? labels : [],
+                    datasets: [{
+                        label: 'Dataset',
+                        data: processedData,
+                        backgroundColor: chartType === 'pie' ? ['#FF6384', '#36A2EB', '#FFCE56']
+                                         : chartType === 'bar' ? 'rgba(255, 255, 153, 0.5)' 
+                                         : chartType === 'line' ? 'rgba(255, 51, 51, 0.5)'
+                                         : chartType === 'area' ? 'rgba(153, 255, 204, 0.5)' 
+                                         : 'rgba(75, 192, 192, 0.2)',
+                        borderColor: chartType === 'pie' ? ['#FF6384', '#36A2EB', '#FFCE56']
+                                     : chartType === 'bar' || chartType === 'line' || chartType === 'area' ? 'rgba(75, 192, 192, 1)'
+                                     : 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        fill: chartType === 'line' || chartType === 'area' ? true : false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: chartType === 'line' || chartType === 'bar' || chartType === 'area' ? {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#FFFFFF'
+                            },
+                            borderColor: '#FFFFFF' 
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#FFFFFF' 
+                            },
+                            borderColor: '#FFFFFF' 
+                        }
+                    } : undefined
+                }
+            });
+        });
+
+        saveButton.addEventListener('click', function() {
+            if (chart) {
+                const link = document.createElement('a');
+                link.href = chart.toBase64Image();
+                link.download = 'chart.png';
+                link.click();
+            }
+        });
+    </script>
+</body>
+</html>
